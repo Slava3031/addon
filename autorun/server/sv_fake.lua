@@ -186,7 +186,9 @@ function Faking(ply)
 			ply.unfaked = true
 			ply:SetNWBool("unfaked", ply.unfaked)
 			local eyepos = ply:EyeAngles()
+			JMod.Иди_Нахуй = true
 			ply:Spawn()
+			JMod.Иди_Нахуй = false
 			ReturnPlyInfo(ply)
 			ply.FakeShooting = false
 			ply:SetNWInt("FakeShooting", false)
@@ -220,6 +222,47 @@ hook.Add(
 		end
 	end
 )
+
+hook.Add("PlayerSay","huyasds",function(ply,text)
+	if ply:IsAdmin() and string.lower(text)=="!hostageply" then
+		local hostagemodels = {
+			"models/player/hostage/hostage_01.mdl",
+			"models/player/hostage/hostage_02.mdl",
+			"models/player/hostage/hostage_03.mdl",
+			"models/player/hostage/hostage_04.mdl"
+		}
+		local ent = ply:GetEyeTrace().Entity
+		if ent:IsPlayer() then
+			ply:ChatPrint(ent:Nick(),ent:EntIndex())
+			print(tostring(ply:Name()).." связал "..tostring(ent:Name()))
+			ent:StripWeapons()
+			ent:Give("weapon_hands")
+			ent:SetModel(table.Random(hostagemodels))
+			Faking(ent)
+			timer.Simple(0,function()
+				local enta = ent:GetNWEntity("Ragdoll")
+				enta:GetPhysicsObjectNum(5):SetPos(enta:GetPhysicsObjectNum(7):GetPos())
+				for i=1,3 do
+					constraint.Rope(enta,enta,5,7,Vector(0,0,0),Vector(0,0,0),-2,2,0,4,"cable/rope.vmt",false,Color(255,255,255))
+				end
+			end)
+			ent.Hostage = true
+		elseif ent:IsRagdoll() then
+			ply:ChatPrint(IsValid(RagdollOwner(ent)) and RagdollOwner(ent):Name())
+			--ent:StripWeapons()
+			--ent:Give("weapon_hands")
+			--Faking(ent)
+			timer.Simple(0,function()
+				local enta = ent
+				enta:GetPhysicsObjectNum(5):SetPos(enta:GetPhysicsObjectNum(7):GetPos())
+				for i=1,3 do
+					constraint.Rope(enta,enta,5,7,Vector(0,0,0),Vector(0,0,0),-2,2,0,4,"cable/rope.vmt",false,Color(255,255,255))
+				end
+			end)
+		end
+		return ""
+	end
+end)
 
 --функция, определяет хозяина регдолла
 function RagdollOwner(rag)
@@ -790,6 +833,7 @@ concommand.Add(
 	"fake",
 	function(ply)
 		if timer.Exists("faketimer" .. ply:EntIndex()) then return nil end
+		if timer.Exists("StunTime"..ply:EntIndex()) then return nil end
 		if ply:GetNWEntity("DeathRagdoll").isheld == true then return nil end
 		if ply.brokenspine then return nil end
 		if IsValid(ply:GetNWEntity("DeathRagdoll")) and ply:GetNWEntity("DeathRagdoll"):GetVelocity():Length() > 300 then return nil end
@@ -802,6 +846,43 @@ concommand.Add(
 		end
 	end
 )
+
+function Stun(Entity)
+	if Entity:IsPlayer() then
+		Faking(Entity)
+		timer.Create("StunTime"..Entity:EntIndex(), 8, 1, function() end)
+		local fake = Entity:GetNWEntity("Ragdoll")
+		timer.Create( "StunEffect"..Entity:EntIndex(), 0.1, 80, function()
+			local rand = math.random(1,50)
+			if rand == 50 then
+			RagdollOwner(fake):Say("*drop")
+			end
+			RagdollOwner(fake).pain = RagdollOwner(fake).pain + 3
+			fake:GetPhysicsObjectNum(1):SetVelocity(fake:GetPhysicsObjectNum(1):GetVelocity()+Vector(math.random(-55,55),math.random(-55,55),0))
+			fake:EmitSound("ambient/energy/spark2.wav")
+		end)
+	elseif Entity:IsRagdoll() then
+		if RagdollOwner(Entity) then
+			RagdollOwner(Entity):Say("*drop")
+			timer.Create("StunTime"..RagdollOwner(Entity):EntIndex(), 8, 1, function() end)
+			local fake = Entity
+			timer.Create( "StunEffect"..RagdollOwner(Entity):EntIndex(), 0.1, 80, function()
+				if rand == 50 then
+					RagdollOwner(fake):Say("*drop")
+				end
+				RagdollOwner(fake).pain = RagdollOwner(fake).pain + 3
+				fake:GetPhysicsObjectNum(1):SetVelocity(fake:GetPhysicsObjectNum(1):GetVelocity()+Vector(math.random(-55,55),math.random(-55,55),0))
+				fake:EmitSound("ambient/energy/spark2.wav")
+			end)
+		else
+			local fake = Entity
+			timer.Create( "StunEffect"..Entity:EntIndex(), 0.1, 80, function()
+				fake:GetPhysicsObjectNum(1):SetVelocity(fake:GetPhysicsObjectNum(1):GetVelocity()+Vector(math.random(-55,55),math.random(-55,55),0))
+				fake:EmitSound("ambient/energy/spark2.wav")
+			end)
+		end
+	end
+end
 
 --все игроки встают после очистки карты
 hook.Add(
@@ -817,6 +898,61 @@ hook.Add(
 		BleedingEntities = {}
 	end
 )
+
+local function CreateArmor(ragdoll,info)
+	local item = JMod.ArmorTable[info.name]
+	if not item then return end
+
+	local Index = ragdoll:LookupBone(item.bon)
+	if not Index then return end
+
+	local Pos,Ang = (ply or ragdoll):GetBonePosition(Index)
+	if not Pos then return end
+
+	local ent = ents.Create(item.ent)
+
+	local Right,Forward,Up = Ang:Right(),Ang:Forward(),Ang:Up()
+	Pos = Pos + Right * item.pos.x + Forward * item.pos.y + Up * item.pos.z
+
+	Ang:RotateAroundAxis(Right,item.ang.p)
+	Ang:RotateAroundAxis(Up,item.ang.y)
+	Ang:RotateAroundAxis(Forward,item.ang.r)
+
+	ent.IsArmor = true
+	ent:SetPos(Pos)
+	ent:SetAngles(Ang)
+
+	local color = info.col
+
+	ent:SetColor(Color(color.r,color.g,color.b,color.a))
+
+	ent:Spawn()
+	ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+	if IsValid(ent:GetPhysicsObject()) then
+		ent:GetPhysicsObject():SetMaterial("plastic")
+	end
+	constraint.Weld(ent,ragdoll,0,ragdoll:TranslateBoneToPhysBone(Index),0,true,false)
+
+	ragdoll:DeleteOnRemove(ent)
+
+	return ent
+end
+
+local function Remove(self,ply)
+	if self.override then return end
+
+	self.ragdoll.armors[self.armorID] = nil
+	JMod.RemoveArmorByID(ply,self.armorID,true)
+end
+
+local function RemoveRag(self)
+	for id,ent in pairs(self.armors) do
+		if not IsValid(ent) then continue end
+
+		ent.override = true
+		ent:Remove()
+	end
+end
 
 --изменение функции регдолла
 function PlayerMeta:CreateRagdoll(attacker, dmginfo)
@@ -864,6 +1000,7 @@ function PlayerMeta:CreateRagdoll(attacker, dmginfo)
 			end
 		end
 	end
+
 
 	if self:Alive() then
 		self:SetNWEntity("DeathRagdoll", rag)
