@@ -1,5 +1,4 @@
 BleedingEntities = {}
-include("autorun/shared.lua")
 local PlayerMeta = FindMetaTable("Player")
 local EntityMeta = FindMetaTable("Entity")
 print("[DEBUG] sv_fake.lua loaded")
@@ -197,8 +196,18 @@ end
 
 
 -- Функция для создания брони на регдолле
+-- Таблица для хранения информации о броне
+local PlayerArmorData = {}
+
+-- Таблица соответствия между названиями брони и их энтити
+local ArmorEntityMapping = {
+    ["Medium-Vest"] = "ent_jack_gmod_ezarmor_mtorso",
+    ["Riot-Helmet"] = "ent_jack_gmod_ezarmor_riot",
+    ["Respirator"] = "ent_jack_gmod_ezarmor_respirator"
+}
+
 local function CreateArmor(ragdoll, item)
-    local armorClass = "ent_jack_gmod_ezarmor_" .. string.lower(string.Replace(item.name, " ", ""))
+    local armorClass = ArmorEntityMapping[item.name] or "ent_jack_gmod_ezarmor_" .. string.lower(string.Replace(item.name, " ", ""))
     local ent = ents.Create(armorClass)
     if not IsValid(ent) then
         print("[ERROR] Failed to create armor entity for:", armorClass)
@@ -211,7 +220,6 @@ local function CreateArmor(ragdoll, item)
     elseif item.type == "chest" then
         boneName = "ValveBiped.Bip01_Spine2"
     else
-        -- Укажите другие типы брони и соответствующие кости по мере необходимости
         boneName = "ValveBiped.Bip01_Spine2" -- значение по умолчанию
     end
 
@@ -229,8 +237,6 @@ local function CreateArmor(ragdoll, item)
     ent:Spawn()
     return ent
 end
-
-
 
 -- Функция для переноса брони на регдолл
 local function TransferArmorToRagdoll(ply, ragdoll)
@@ -250,6 +256,17 @@ local function TransferArmorToRagdoll(ply, ragdoll)
     end
 end
 
+hook.Add("PlayerDeath", "HandleArmorOnDeath", function(ply, inflictor, attacker)
+    local ragdoll = ply:GetRagdollEntity()
+    if not IsValid(ragdoll) then return end
+
+    TransferArmorToRagdoll(ply, ragdoll)
+    ply.EZarmor = nil -- Очистка таблицы брони после смерти
+end)
+
+hook.Add("PlayerSpawn", "HandleArmorOnSpawn", function(ply)
+    -- Логика для восстановления брони при спавне, если нужно
+end)
 
 
 -- функция падения
