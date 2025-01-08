@@ -1,16 +1,21 @@
 BleedingEntities = {}
+include("autorun/shared.lua")
 local PlayerMeta = FindMetaTable("Player")
 local EntityMeta = FindMetaTable("Entity")
+print("[DEBUG] sv_fake.lua loaded")
+
+
 Organs = {
-	["brain"] = 5,
-	["lungs"] = 30,
-	["liver"] = 30,
-	["stomach"] = 40,
-	["intestines"] = 40,
-	["heart"] = 10,
-	["artery"] = 1,
-	["spine"] = 10
+    ["brain"] = 5,
+    ["lungs"] = 30,
+    ["liver"] = 30,
+    ["stomach"] = 40,
+    ["intestines"] = 40,
+    ["heart"] = 10,
+    ["artery"] = 1,
+    ["spine"] = 10
 }
+
 
 local bonenames = {
 	["ValveBiped.Bip01_Head1"] = "Head",
@@ -66,6 +71,39 @@ local bonetohitgroup = {
 	["ValveBiped.Bip01_R_Foot"] = 7
 }
 
+-- Хук для обработки экипировки JMod брони
+hook.Add("JMod_Armor_Equip", "HandleJModArmorEquip", function(ply, slot, item, drop)
+    print("[DEBUG] Equip called for:", ply, slot, item)
+    local ragdoll = ply:GetNWEntity("DeathRagdoll")
+    if not IsValid(ragdoll) then return end
+
+    local ent = CreateArmor(ragdoll, item)
+    ent.armorID = slot.id
+    ent.Owner = ply
+    ragdoll.armors = ragdoll.armors or {}
+    ragdoll.armors[slot.id] = ent
+
+    ent:CallOnRemove("HandleJModArmorRemove", function()
+        if IsValid(ragdoll) and ragdoll.armors then
+            ragdoll.armors[slot.id] = nil
+        end
+    end)
+end)
+
+-- Хук для обработки снятия JMod брони
+hook.Add("JMod_Armor_Remove", "HandleJModArmorRemove", function(ply, slot, item, drop)
+    print("[DEBUG] Remove called for:", ply, slot, item)
+    local ragdoll = ply:GetNWEntity("DeathRagdoll")
+    if not IsValid(ragdoll) or not ragdoll.armors then return end
+
+    local ent = ragdoll.armors[slot.id]
+    if IsValid(ent) then
+        ent:Remove()
+        ragdoll.armors[slot.id] = nil
+    end
+end)
+
+
 -- Сохранение игрока перед его падением в фейк
 function SavePlyInfo(ply)
 	ply.Info = {}
@@ -86,6 +124,13 @@ function SavePlyInfo(ply)
 
 	return info
 end
+
+-- Например:
+--[[local vel = ply:GetVelocity()
+if ply.EZarmor and ply.EZarmor.items then
+	ply.Info.ArmorItems = table.Copy(ply.EZarmor.items) --залупа не трогать все ломает я даун тупой -Slava
+end]]
+
 
 function GetFakeWeapon(ply)
 	ply.curweapon = ply.Info.ActiveWeapon
@@ -141,70 +186,132 @@ function ReturnPlyInfo(ply)
 	ply:SetHealth(info.Hp)
 	ply:SetArmor(info.Armor)
 	ply:SetSuppressPickupNotices(false)
+	if ply.Info.ArmorItems then
+        ply.EZarmor = ply.EZarmor or { items = {} }
+        ply.EZarmor.items = ply.Info.ArmorItems
+        for _, armor in pairs(ply.Info.ArmorItems) do
+            JMod.AddArmor(ply, armor.name, armor.amount)
+        end
+    end
 end
+
+
+-- Функция для создания брони на регдолле
+local function CreateArmor(ragdoll, item)
+    local armorClass = "ent_jack_gmod_ezarmor_" .. string.lower(string.Replace(item.name, " ", ""))
+    local ent = ents.Create(armorClass)
+    if not IsValid(ent) then
+        print("[ERROR] Failed to create armor entity for:", armorClass)
+        return nil
+    end
+
+    local boneName
+    if item.type == "head" then
+        boneName = "ValveBiped.Bip01_Head1"
+    elseif item.type == "chest" then
+        boneName = "ValveBiped.Bip01_Spine2"
+    else
+        -- Укажите другие типы брони и соответствующие кости по мере необходимости
+        boneName = "ValveBiped.Bip01_Spine2" -- значение по умолчанию
+    end
+
+    local boneIndex = ragdoll:LookupBone(boneName)
+    if boneIndex then
+        local bonePos, boneAng = ragdoll:GetBonePosition(boneIndex)
+        ent:SetPos(bonePos)
+        ent:SetAngles(boneAng)
+        ent:SetParent(ragdoll, boneIndex)
+    else
+        ent:SetPos(ragdoll:GetPos())
+        ent:SetParent(ragdoll)
+    end
+
+    ent:Spawn()
+    return ent
+end
+
+
+
+-- Функция для переноса брони на регдолл
+local function TransferArmorToRagdoll(ply, ragdoll)
+    if not ply.EZarmor or not ply.EZarmor.items then
+        print("[DEBUG] No armor to transfer for player:", ply)
+        return
+    end
+
+    for id, armor in pairs(ply.EZarmor.items) do
+        print("[DEBUG] Transferring armor:", armor.name, "to ragdoll:", ragdoll)
+        local ent = CreateArmor(ragdoll, armor)
+        if ent then
+            ent:SetParent(ragdoll)
+        else
+            print("[ERROR] Failed to create armor entity for:", armor.name)
+        end
+    end
+end
+
+
 
 -- функция падения
 function Faking(ply)
-	ply.fake = not ply.fake
-	ply:SetNWBool("fake", ply.fake)
-	if ply.fake == true then
-		SavePlyInfo(ply)
-		ply:DrawViewModel(false)
-		if SERVER then
-			ply:DrawWorldModel(false)
-		end
+    ply.fake = not ply.fake
+    ply:SetNWBool("fake", ply.fake)
+    if ply.fake then
+        SavePlyInfo(ply)
+        ply:DrawViewModel(false)
+        if SERVER then
+            ply:DrawWorldModel(false)
+        end
 
-		if ply:InVehicle() then
-			ply:ExitVehicle()
-		end
+        if ply:InVehicle() then
+            ply:ExitVehicle()
+        end
 
-		ply:CreateRagdoll()
-		if IsValid(ply:GetNWEntity("DeathRagdoll")) then
-			ply.fakeragdoll = ply:GetNWEntity("DeathRagdoll")
-			ply:HuySpectate()
-			--ply:SetParent(ply:GetNWEntity("DeathRagdoll"))
-			ply:SetSuppressPickupNotices(false)
-			ply:SetActiveWeapon(nil)
-			ply:DropObject()
-			timer.Create("faketimer" .. ply:EntIndex(), 2, 1, function() end)
-			local guninfo = weapons.Get(ply.curweapon)
-			if guninfo and guninfo.Base == "salat_base" then
-				ply.FakeShooting = true
-				ply:SetNWInt("FakeShooting", true)
-			else
-				ply.FakeShooting = false
-				ply:SetNWInt("FakeShooting", false)
-			end
-		end
-	else
-		if IsValid(ply:GetNWEntity("DeathRagdoll")) then
-			ply.fakeragdoll = nil
-			SavePlyInfoPreSpawn(ply)
-			local pos = ply:GetNWEntity("DeathRagdoll"):GetPos()
-			local vel = ply:GetNWEntity("DeathRagdoll"):GetVelocity()
-			--ply:UnSpectate()
-			ply.unfaked = true
-			ply:SetNWBool("unfaked", ply.unfaked)
-			local eyepos = ply:EyeAngles()
-			JMod.Иди_Нахуй = true
-			ply:Spawn()
-			JMod.Иди_Нахуй = false
-			ReturnPlyInfo(ply)
-			ply.FakeShooting = false
-			ply:SetNWInt("FakeShooting", false)
-			ply:SetVelocity(vel)
-			ply:SetEyeAngles(eyepos)
-			ply.unfaked = false
-			ply:SetNWBool("unfaked", ply.unfaked)
-			ply:SetParent()
-			ply:SetPos(pos)
-			ply:DrawViewModel(true)
-			ply:DrawWorldModel(true)
-			ply:GetNWEntity("DeathRagdoll"):Remove()
-			ply:SetNWEntity("DeathRagdoll", nil)
-		end
-	end
+        ply:CreateRagdoll()
+        local ragdoll = ply:GetNWEntity("DeathRagdoll")
+        if IsValid(ragdoll) then
+            ply.fakeragdoll = ragdoll
+            ply:HuySpectate()
+            ply:SetSuppressPickupNotices(false)
+            ply:SetActiveWeapon(nil)
+            ply:DropObject()
+            timer.Create("faketimer" .. ply:EntIndex(), 2, 1, function() end)
+            local guninfo = weapons.Get(ply.curweapon)
+            if guninfo and guninfo.Base == "salat_base" then
+                ply.FakeShooting = true
+                ply:SetNWInt("FakeShooting", true)
+            else
+                ply.FakeShooting = false
+                ply:SetNWInt("FakeShooting", false)
+            end
+            -- Переносим броню на регдолл
+            TransferArmorToRagdoll(ply, ragdoll)
+        end
+    else
+        local ragdoll = ply:GetNWEntity("DeathRagdoll")
+        if IsValid(ragdoll) then
+            ply.fakeragdoll = nil
+            SavePlyInfoPreSpawn(ply)
+            local pos = ragdoll:GetPos()
+            local vel = ragdoll:GetVelocity()
+            local eyepos = ply:EyeAngles()
+            JMod.Иди_Нахуй = true
+            ply:Spawn()
+            JMod.Иди_Нахуй = false
+            ReturnPlyInfo(ply)
+            ply.FakeShooting = false
+            ply:SetNWInt("FakeShooting", false)
+            ply:SetVelocity(vel)
+            ply:SetEyeAngles(eyepos)
+            ply:SetPos(pos)
+            ply:DrawViewModel(true)
+            ply:DrawWorldModel(true)
+            ragdoll:Remove()
+            ply:SetNWEntity("DeathRagdoll", nil)
+        end
+    end
 end
+
 
 --функция стрельбы лежа
 hook.Add(
@@ -1760,3 +1867,4 @@ hook.Add("Think","ZenFix1", function ()
 			net.Send(ply)
 	end
 end)
+
