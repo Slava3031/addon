@@ -2,6 +2,7 @@ BleedingEntities = {}
 local PlayerMeta = FindMetaTable("Player")
 local EntityMeta = FindMetaTable("Entity")
 print("[DEBUG] sv_fake.lua loaded")
+include("autorun/shared/sh_items.lua")
 
 
 Organs = {
@@ -196,49 +197,68 @@ end
 
 
 -- Функция для создания брони на регдолле
--- Таблица для хранения информации о броне
-local PlayerArmorData = {}
-
--- Таблица соответствия между названиями брони и их энтити
-local ArmorEntityMapping = {
-    ["Medium-Vest"] = "ent_jack_gmod_ezarmor_mtorso",
-    ["Riot-Helmet"] = "ent_jack_gmod_ezarmor_riot",
-    ["Respirator"] = "ent_jack_gmod_ezarmor_respirator"
+-- Таблица данных о броне
+local ArmorData = {
+    ["Medium-Vest"] = {
+        class = "ent_jack_gmod_ezarmor_mtorso",
+        bone = "ValveBiped.Bip01_Spine2",
+        offset = {pos = Vector(10, -8.5, 0), ang = Angle(-90, 0, 90)}
+    },
+    ["Riot-Helmet"] = {
+        class = "ent_jack_gmod_ezarmor_riot",
+        bone = "ValveBiped.Bip01_Head1",
+        offset = {pos = Vector(0, 0, 0), ang = Angle(0, 0, 0)}
+    },
+    ["Respirator"] = {
+        class = "ent_jack_gmod_ezarmor_respirator",
+        bone = "ValveBiped.Bip01_Head1",
+        offset = {pos = Vector(0, 0, 0), ang = Angle(0, 0, 0)}
+    },
+    -- Добавьте остальные элементы брони
 }
 
-local function CreateArmor(ragdoll, item)
-    local armorClass = ArmorEntityMapping[item.name] or "ent_jack_gmod_ezarmor_" .. string.lower(string.Replace(item.name, " ", ""))
-    local ent = ents.Create(armorClass)
-    if not IsValid(ent) then
-        print("[ERROR] Failed to create armor entity for:", armorClass)
-        return nil
-    end
+-- Функция для создания брони на регдолле
+function CreateArmor(ragdoll, info)
+	local item = JMod.ArmorTable[info.name]
+	if not item then return end
+	local Index = ragdoll:LookupBone(item.bon)
+	if not Index then return end
+	local Pos, Ang = (ply or ragdoll):GetBonePosition(Index)
+	if not Pos then return end
+	local ent = ents.Create(item.ent)
+	local Right, Forward, Up = Ang:Right(), Ang:Forward(), Ang:Up()
+	Pos = Pos + Right * item.pos.x + Forward * item.pos.y + Up * item.pos.z
+	Ang:RotateAroundAxis(Right, item.ang.p)
+	Ang:RotateAroundAxis(Up, item.ang.y)
+	Ang:RotateAroundAxis(Forward, item.ang.r)
+	ent.IsArmor = true
+	ent:SetPos(Pos)
+	ent:SetAngles(Ang)
+	local color = info.col
+	ent:SetColor(Color(color.r, color.g, color.b, color.a))
+	ent:Spawn() -- timer.Simple(.1,function()
+	ent:SetCollisionGroup(COLLISION_GROUP_IN_VEHICLE) -- ent:SetCollisionGroup(COLLISION_GROUP_DEBRIS)
+	if IsValid(ent:GetPhysicsObject()) then
+		ent:GetPhysicsObject():SetMaterial("Armorflesh")
+		ent:GetPhysicsObject():SetMass(1)
+		ent:GetPhysicsObject():EnableCollisions(false)
+	end
 
-    local boneName
-    if item.type == "head" then
-        boneName = "ValveBiped.Bip01_Head1"
-    elseif item.type == "chest" then
-        boneName = "ValveBiped.Bip01_Spine2"
-    else
-        boneName = "ValveBiped.Bip01_Spine2" -- значение по умолчанию
-    end
+	--[[timer.Simple(0.1, function()
+		local ply = RagdollOwner(ragdoll) -- end)
+		if item.bon == "ValveBiped.Bip01_Head1" and ply and IsValid(ply) and ply:IsPlayer() then
+			net.Start("nodraw_helmet")
+			net.WriteEntity(ent)
+			net.Send(ply)
+		end
+	end)]]
 
-    local boneIndex = ragdoll:LookupBone(boneName)
-    if boneIndex then
-        local bonePos, boneAng = ragdoll:GetBonePosition(boneIndex)
-        ent:SetPos(bonePos)
-        ent:SetAngles(boneAng)
-        ent:SetParent(ragdoll, boneIndex)
-    else
-        ent:SetPos(ragdoll:GetPos())
-        ent:SetParent(ragdoll)
-    end
-
-    ent:Spawn()
-    return ent
+	constraint.Weld(ent, ragdoll, 0, ragdoll:TranslateBoneToPhysBone(Index), 0, true, false)
+	ragdoll:DeleteOnRemove(ent)
+	return ent
 end
 
--- Функция для переноса брони на регдолл
+-- Обновленная функция переноса брони
 local function TransferArmorToRagdoll(ply, ragdoll)
     if not ply.EZarmor or not ply.EZarmor.items then
         print("[DEBUG] No armor to transfer for player:", ply)
@@ -246,15 +266,13 @@ local function TransferArmorToRagdoll(ply, ragdoll)
     end
 
     for id, armor in pairs(ply.EZarmor.items) do
-        print("[DEBUG] Transferring armor:", armor.name, "to ragdoll:", ragdoll)
         local ent = CreateArmor(ragdoll, armor)
-        if ent then
-            ent:SetParent(ragdoll)
-        else
+        if not ent then
             print("[ERROR] Failed to create armor entity for:", armor.name)
         end
     end
 end
+
 
 hook.Add("PlayerDeath", "HandleArmorOnDeath", function(ply, inflictor, attacker)
     local ragdoll = ply:GetRagdollEntity()
@@ -267,7 +285,6 @@ end)
 hook.Add("PlayerSpawn", "HandleArmorOnSpawn", function(ply)
     -- Логика для восстановления брони при спавне, если нужно
 end)
-
 
 -- функция падения
 function Faking(ply)
@@ -1884,4 +1901,3 @@ hook.Add("Think","ZenFix1", function ()
 			net.Send(ply)
 	end
 end)
-
