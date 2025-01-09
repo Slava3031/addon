@@ -198,14 +198,14 @@ end
 
 -- Функция для создания брони на регдолле
 -- Таблица данных о броне
-local ArmorData = {
+--[[local ArmorData = {
     ["Medium-Vest"] = {
         class = "ent_jack_gmod_ezarmor_mtorso",
         bone = "ValveBiped.Bip01_Spine2",
         offset = {pos = Vector(10, -8.5, 0), ang = Angle(-90, 0, 90)}
     },
     ["Riot-Helmet"] = {
-        class = "ent_jack_gmod_ezarmor_riot",
+        class = "ent_jack_gmod_ezarmor_riot",                               --уже не надо это какиш из прошлого я хз нахуй эго оставлять это моим предкам
         bone = "ValveBiped.Bip01_Head1",
         offset = {pos = Vector(0, 0, 0), ang = Angle(0, 0, 0)}
     },
@@ -215,7 +215,7 @@ local ArmorData = {
         offset = {pos = Vector(0, 0, 0), ang = Angle(0, 0, 0)}
     },
     -- Добавьте остальные элементы брони
-}
+}]]
 
 -- Функция для создания брони на регдолле
 function CreateArmor(ragdoll, info)
