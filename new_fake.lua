@@ -674,7 +674,7 @@ hook.Add(
 	end
 )
 
-local bleedsounds = {"player/pl_pain1.wav", "player/pl_pain2.wav", "player/pl_pain3.wav", "player/pl_pain4.wav"}
+local bleedsounds = {"player/pl_pain1.wav", "player/pl_pain2.wav", "player/damage1.wav",  "player/pl_pain3.wav", "player/damage2.wav", "player/damage3.wav", "player/pl_pain5.wav", "player/pl_pain6.wav", "player/pl_pain6.wav", "player/pl_pain4.wav"}
 --урон по разным костям регдолла
 local r_tooth = math.random(4,9)
 
@@ -723,38 +723,34 @@ local function HandleOrganDamage(target, dmginfo)
                 
                 local pos1, ang1 = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Spine1"))
                 local aorta = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos1, ang1, Vector(-4, 1, 1), Vector(4, 2, 2))
+				local liver = util.IntersectRayWithOBB(bullet_pos,bullet_force, pos1, ang1, Vector(-1,-2,-5),Vector(4,4,1))
+                local kidneys = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos1, ang1, Vector(-6, -3, -2), Vector(2, 3, 4))
+                local pancreas = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos1, ang1, Vector(-5, -2, -1), Vector(3, 2, 3))
+                local spleen = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos1, ang1, Vector(-7, -3, -1), Vector(-3, 2, 4))
+
 
                 local pos2, ang2 = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Spine2"))
                 local lung = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos2, ang2, Vector(1, -1, -6), Vector(8, 7, 6))
-                local heart = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos2, ang2, Vector(1, 0, -1), Vector(5, 4, 3))
+				local heart = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos2, ang2, Vector(1, 0, -1), Vector(5, 4, 3))
+                local rib = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos2, ang2, Vector(-4,-6,-1), Vector(7,10,1))
                 
                 local pos3, ang3 = target:GetBonePosition(target:LookupBone('ValveBiped.Bip01_Pelvis'))
                 local pelvis = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos3, ang3, Vector(-4, -3, -3), Vector(4, 3, 3))
-
-                local pos4,ang4 = target:GetBonePosition(target:LookupBone('ValveBiped.Bip01_Spine'))
-                local liver = util.IntersectRayWithOBB(bullet_pos,bullet_force, pos4, ang4, Vector(-1,-2,-5),Vector(4,4,1))
 
 				 local pos5, ang5 = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Spine4"))
                  local spine = util.IntersectRayWithOBB(bullet_pos,bullet_force, pos5, ang5, Vector(-8, -1, -1), Vector(2, 0, 1))
 				 local pos6, ang6 = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Spine1"))
 				 local spine2 = util.IntersectRayWithOBB(bullet_pos,bullet_force, pos6, ang6, Vector(-8, -3, -1), Vector(2, -2, 1))
 
+
                 local pos7, ang7 = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Head1"))
                 local artery1 = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos7, ang7, Vector(-3, -2, -2), Vector(0, -1, -1))
                 local artery2 = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos7, ang7, Vector(-3, -2, 1), Vector(0, -1, 2))
-                local rib = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos2, ang2, Vector(-4,-6,-1), Vector(7,10,1))
+                 
                 local rib2 = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos1, ang1, Vector(-4,-6,-1), Vector(7,10,1))
                 
-                local pos8, ang8 = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Spine1"))
-                local kidneys = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos8, ang8, Vector(-6, -3, -2), Vector(2, 3, 4))
-                
-                local pos9, ang9 = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Spine1"))
-                local pancreas = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos9, ang9, Vector(-5, -2, -1), Vector(3, 2, 3))
-               
-                local pos10, ang10 = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Spine1"))
-                local spleen = util.IntersectRayWithOBB(bullet_pos, bullet_force, pos10, ang10, Vector(-7, -3, -1), Vector(-3, 2, 4))
 				local timerName = "organ_timer" .. target:SteamID()
-                 if head then
+                if head then
                     print("Head Hitted")
 					target:ChatPrint("Вы получили повреждение мозга!")
                     target:Kill()
@@ -794,7 +790,7 @@ local function HandleOrganDamage(target, dmginfo)
                             target:EmitSound(table.Random(bleedsounds), 75, 100, 1, CHAN_AUTO)
                         end
                     end)
-					AllTimers[timerName] = timerName
+                     AllTimers[timerName] = timerName
 					MouthTimers[target:SteamID()] = timerName
                 end
 
@@ -826,7 +822,7 @@ local function HandleOrganDamage(target, dmginfo)
                             target:SetNWInt("O2", target:GetNWInt("O2", 100) - 15)
                         end
                     end)
-                    AllTimers[timerName] = timerName
+                     AllTimers[timerName] = timerName
                      TraheaTimers[target:SteamID()] = timerName
                 end
                 
@@ -838,7 +834,7 @@ local function HandleOrganDamage(target, dmginfo)
                     target:SetNWInt("Pain", target:GetNWInt("Pain", 0) + 20)
                     target:SetNWBool("ArterialBleeding", true)
 					target.aorta = true
-                     local timerName = "organ_timer" .. target:SteamID()
+                    local timerName = "organ_timer" .. target:SteamID()
                     timer.Create(timerName, 0.3, 0, function()
 						if not IsValid(target) then timer.Remove(timerName); return end
                         local handPos, handAng = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Spine2"))
@@ -870,13 +866,13 @@ local function HandleOrganDamage(target, dmginfo)
                     AortaTimers[target:SteamID()] = timerName
                 end
 
-                 if heart then
+                if heart then
 					if not IsValid(target) then return end
                     print("Heart Hitted")
 					target:ChatPrint("Бум, вам попали в сердце, у вас сильная отдышка и очень массивная боль.")
                     target:SetNWInt("Pain", target:GetNWInt("Pain", 0) + 30)
                     target:SetNWBool("ArterialBleeding", true)
-                     local timerName = "organ_timer" .. target:SteamID()
+                    local timerName = "organ_timer" .. target:SteamID()
                     timer.Create(timerName, 0.3, 0, function()
 						if not IsValid(target) then timer.Remove(timerName); return end
                         local handPos, handAng = target:GetBonePosition(target:LookupBone("ValveBiped.Bip01_Spine2"))
@@ -905,7 +901,7 @@ local function HandleOrganDamage(target, dmginfo)
                         end
                     end)
                     AllTimers[timerName] = timerName
-                     HeartTimers[target:SteamID()] = timerName
+                    HeartTimers[target:SteamID()] = timerName
                 end
 
                 if lung then
@@ -936,11 +932,11 @@ local function HandleOrganDamage(target, dmginfo)
                             target:SetNWInt("O2", target:GetNWInt("O2", 100) - 15)
                         end
                     end)
-                     AllTimers[timerName] = timerName
+                    AllTimers[timerName] = timerName
                     LungTimers[target:SteamID()] = timerName
                 end
                 
-                 if pelvis then
+                if pelvis then
 					if not IsValid(target) then return end
                     print("Pelvis Hitted")
 					 target:ChatPrint("Вам сломало таз! Это довольно сильная боль!")
@@ -988,7 +984,7 @@ local function HandleOrganDamage(target, dmginfo)
                         end
                     end)
                     AllTimers[timerName] = timerName
-                    LiverTimers[target:SteamID()] = timerName
+                     LiverTimers[target:SteamID()] = timerName
                 end
 				 if artery1 or artery2 then
 					if target.Organs["artery"] ~= 0 then
@@ -1018,7 +1014,7 @@ local function HandleOrganDamage(target, dmginfo)
                     target.Organs["kidneys"] = math.Clamp((target.Organs["kidneys"] or 25) - damage, 0, 25)
                     target:EmitSound("ambient/water/drip" .. math.random(1, 4) .. ".wav", 60, math.random(230, 240), 0.1, CHAN_AUTO)
 					if target:IsPlayer() then
-					 target:SetWalkSpeed(math.max(target:GetWalkSpeed() - 30, 0))
+					  target:SetWalkSpeed(math.max(target:GetWalkSpeed() - 30, 0))
                      target:SetRunSpeed(math.max(target:GetRunSpeed() - 30, 0))
 					  target:SetNWInt("Pain", target:GetNWInt("Pain", 0) + 10)
 					 end
@@ -1064,7 +1060,7 @@ local function HandleOrganDamage(target, dmginfo)
 end
 
 hook.Add("PlayerDeath", "PlayerDeathCancelTimers", function(ply, attacker, dmginfo)
-   for timerName, _ in pairs(AllTimers) do
+    for timerName, _ in pairs(AllTimers) do
 		if string.find(timerName, ply:SteamID()) then
 			timer.Remove(timerName)
 		end
@@ -1074,14 +1070,14 @@ hook.Add("PlayerDeath", "PlayerDeathCancelTimers", function(ply, attacker, dmgin
     if MouthTimers[ply:SteamID()] then MouthTimers[ply:SteamID()] = nil end
     if TraheaTimers[ply:SteamID()] then TraheaTimers[ply:SteamID()] = nil end
     if HeartTimers[ply:SteamID()] then HeartTimers[ply:SteamID()] = nil end
-    if LungTimers[ply:SteamID()] then LungTimers[ply:SteamID()] = nil end
-	 walkSpeeds[ply] = nil
+      if LungTimers[ply:SteamID()] then LungTimers[ply:SteamID()] = nil end
+	  walkSpeeds[ply] = nil
     runSpeeds[ply] = nil
     if ply.Organs then
         for organName, _ in pairs(ply.Organs) do
             ply.Organs[organName] = Organs[organName]
         end
-    end
+	 end
 end)
 
 concommand.Add("reseteffects", function(ply, cmd, args)
@@ -1107,7 +1103,7 @@ concommand.Add("reseteffects", function(ply, cmd, args)
         for organName, _ in pairs(ply.Organs) do
             ply.Organs[organName] = Organs[organName]
         end
-    end
+	 end
 	ply.LeftLeg = 1
 	ply.RightLeg = 1
 	ply.RightArm = 1
